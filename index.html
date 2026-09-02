@@ -17,6 +17,9 @@
       video + * {
         display: none !important;
       }
+      .video-media-container ~ * {
+        display: none !important;
+      }
       article:has(video) > :not(video),
       .video-item:has(video) > :not(video),
       .video-card:has(video) > :not(video),
@@ -30,6 +33,9 @@
           const videos = Array.from(document.querySelectorAll('video'));
 
           videos.forEach((video) => {
+            if (video.parentElement) {
+              video.parentElement.classList.add('video-media-container');
+            }
             video.setAttribute('autoplay', 'true');
             video.setAttribute('muted', 'true');
             video.setAttribute('playsinline', 'true');
