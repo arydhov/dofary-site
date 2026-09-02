@@ -95,12 +95,8 @@
         display: none !important;
       }
 
-      .video-loading-overlay.is-error .video-loading-label::before {
-        content: "Video unavailable";
-      }
-
       .video-loading-overlay.is-error .video-loading-label {
-        font-size: 0;
+        font-size: 0.75rem;
       }
 
       .video-loading-overlay.is-error .video-loading-detail,
@@ -135,8 +131,16 @@
         function setupVideoLoading(video) {
           const parent = video.parentElement;
           if (!parent) return;
-          if (video.dataset.loadingReady === 'true' &&
-              parent.querySelector('.video-loading-overlay')) return;
+          const existingOverlay = parent.querySelector('.video-loading-overlay');
+          if (video.dataset.loadingReady === 'true' && existingOverlay) {
+            if (video.error) {
+              existingOverlay.classList.remove('is-ready');
+              existingOverlay.classList.add('is-error');
+            } else if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+              existingOverlay.classList.add('is-ready');
+            }
+            return;
+          }
 
           if (getComputedStyle(parent).position === 'static') {
             parent.style.position = 'relative';
@@ -196,12 +200,17 @@
             updateProgress();
           };
           const showBuffering = function () {
+            if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA || video.error) {
+              hideOverlay();
+              return;
+            }
             showOverlay();
             if (detail) detail.textContent = 'Collecting video from server...';
           };
           const showUnavailable = function () {
             overlay.classList.remove('is-ready');
             overlay.classList.add('is-error');
+            if (label) label.textContent = 'Video unavailable';
             overlay.setAttribute('aria-label', 'Video unavailable');
           };
 
