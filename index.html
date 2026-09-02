@@ -10,5 +10,276 @@
   </head>
   <body>
     <div id="root"></div>
+    <style>
+      video ~ *:not(.video-loading-overlay) {
+        display: none !important;
+      }
+      video + *:not(.video-loading-overlay) {
+        display: none !important;
+      }
+      .video-loading-overlay ~ * {
+        display: none !important;
+      }
+      .video-card-content-hidden {
+        display: none !important;
+      }
+      article:has(video) > :not(video):not(.video-loading-overlay),
+      .video-item:has(video) > :not(video):not(.video-loading-overlay),
+      .video-card:has(video) > :not(video):not(.video-loading-overlay),
+      [class*="video"]:has(video) > :not(video):not(.video-loading-overlay) {
+        display: none !important;
+      }
+
+      .video-loading-overlay {
+        align-items: center;
+        background: linear-gradient(110deg, #202020 8%, #2d2d2d 18%, #202020 33%);
+        background-size: 200% 100%;
+        color: rgba(255, 255, 255, 0.72);
+        display: flex !important;
+        inset: 0;
+        justify-content: center;
+        min-height: 180px;
+        pointer-events: none;
+        position: absolute;
+        z-index: 2;
+        animation: video-loading-shimmer 1.4s linear infinite;
+        transition: opacity 180ms ease;
+      }
+
+      .video-loading-content {
+        align-items: center;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 220px;
+        padding: 20px;
+        text-align: center;
+        width: 100%;
+      }
+
+      .video-loading-label {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .video-loading-detail {
+        color: rgba(255, 255, 255, 0.58);
+        font-size: 0.68rem;
+      }
+
+      .video-loading-progress {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        height: 4px;
+        overflow: hidden;
+        width: 100%;
+      }
+
+      .video-loading-progress-bar {
+        background: #818cf8;
+        border-radius: inherit;
+        height: 100%;
+        min-width: 8%;
+        transition: width 250ms ease;
+        width: 0;
+      }
+
+      .video-loading-progress.is-indeterminate .video-loading-progress-bar {
+        animation: video-loading-progress 1.2s ease-in-out infinite;
+        width: 35%;
+      }
+
+      .video-loading-overlay.is-ready {
+        display: none !important;
+      }
+
+      .video-loading-overlay.is-error .video-loading-label::before {
+        content: "Video unavailable";
+      }
+
+      .video-loading-overlay.is-error .video-loading-label {
+        font-size: 0;
+      }
+
+      .video-loading-overlay.is-error .video-loading-detail,
+      .video-loading-overlay.is-error .video-loading-progress {
+        display: none;
+      }
+
+      .video-loading-spinner {
+        border: 2px solid rgba(255, 255, 255, 0.28);
+        border-radius: 50%;
+        border-top-color: rgba(255, 255, 255, 0.9);
+        height: 28px;
+        width: 28px;
+        animation: video-loading-spin 0.8s linear infinite;
+      }
+
+      @keyframes video-loading-shimmer {
+        to { background-position: -200% 0; }
+      }
+
+      @keyframes video-loading-spin {
+        to { transform: rotate(360deg); }
+      }
+
+      @keyframes video-loading-progress {
+        0% { margin-left: -35%; }
+        100% { margin-left: 100%; }
+      }
+    </style>
+    <script>
+      (function () {
+        function setupVideoLoading(video) {
+          const parent = video.parentElement;
+          if (!parent) return;
+          if (video.dataset.loadingReady === 'true' &&
+              parent.querySelector('.video-loading-overlay')) return;
+
+          if (getComputedStyle(parent).position === 'static') {
+            parent.style.position = 'relative';
+          }
+          parent.classList.add('video-media-container');
+
+          const card = parent.parentElement;
+          if (card) {
+            Array.from(card.children).forEach((child) => {
+              if (child !== parent && !child.classList.contains('video-loading-overlay')) {
+                child.classList.add('video-card-content-hidden');
+              }
+            });
+          }
+
+          let overlay = parent.querySelector('.video-loading-overlay');
+          if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'video-loading-overlay';
+            overlay.setAttribute('aria-label', 'Loading video');
+            overlay.setAttribute('role', 'status');
+            overlay.innerHTML = '<div class="video-loading-content">' +
+              '<div class="video-loading-spinner" aria-hidden="true"></div>' +
+              '<div class="video-loading-label">Please wait...</div>' +
+              '<div class="video-loading-detail">Collecting video from server...</div>' +
+              '<div class="video-loading-progress is-indeterminate" role="progressbar" aria-label="Video loading progress">' +
+              '<div class="video-loading-progress-bar"></div></div></div>';
+            parent.appendChild(overlay);
+          }
+
+          const label = overlay.querySelector('.video-loading-label');
+          const detail = overlay.querySelector('.video-loading-detail');
+          const progress = overlay.querySelector('.video-loading-progress');
+          const progressBar = overlay.querySelector('.video-loading-progress-bar');
+          const updateProgress = function () {
+            if (!progress || !progressBar) return;
+            if (Number.isFinite(video.duration) && video.duration > 0 && video.buffered.length > 0) {
+              const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+              const percent = Math.min(100, Math.round((bufferedEnd / video.duration) * 100));
+              progress.classList.remove('is-indeterminate');
+              progressBar.style.width = percent + '%';
+              progress.setAttribute('aria-valuenow', String(percent));
+              if (detail) detail.textContent = 'Buffered ' + percent + '%';
+            } else {
+              progress.classList.add('is-indeterminate');
+              progress.removeAttribute('aria-valuenow');
+              if (detail) detail.textContent = 'Collecting video from server...';
+            }
+          };
+          const hideOverlay = function () {
+            overlay.classList.add('is-ready');
+          };
+          const showOverlay = function () {
+            overlay.classList.remove('is-ready');
+            overlay.style.display = 'flex';
+            if (label) label.textContent = 'Please wait...';
+            updateProgress();
+          };
+          const showBuffering = function () {
+            showOverlay();
+            if (detail) detail.textContent = 'Collecting video from server...';
+          };
+          const showUnavailable = function () {
+            overlay.classList.remove('is-ready');
+            overlay.classList.add('is-error');
+            overlay.setAttribute('aria-label', 'Video unavailable');
+          };
+
+          video.addEventListener('loadeddata', hideOverlay);
+          video.addEventListener('canplay', hideOverlay);
+          video.addEventListener('playing', hideOverlay);
+          video.addEventListener('progress', updateProgress);
+          video.addEventListener('loadedmetadata', updateProgress);
+          video.addEventListener('durationchange', updateProgress);
+          video.addEventListener('waiting', showBuffering);
+          video.addEventListener('stalled', showBuffering);
+          video.addEventListener('error', showUnavailable);
+          video.dataset.loadingReady = 'true';
+
+          if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+            hideOverlay();
+          } else if (video.error) {
+            showUnavailable();
+          } else {
+            showOverlay();
+          }
+        }
+
+        function applyVideoTweaks() {
+          const videos = Array.from(document.querySelectorAll('video'));
+
+          videos.forEach((video) => {
+            setupVideoLoading(video);
+            video.setAttribute('autoplay', 'true');
+            video.setAttribute('muted', 'true');
+            video.setAttribute('playsinline', 'true');
+            video.setAttribute('loop', 'true');
+            video.setAttribute('preload', 'auto');
+            video.autoplay = true;
+            video.muted = true;
+            video.playsInline = true;
+            video.loop = true;
+            video.controls = false;
+
+            const playPromise = video.play && video.play();
+            if (playPromise && typeof playPromise.catch === 'function') {
+              playPromise.catch(function () {});
+            }
+          });
+
+          const wrappers = Array.from(document.querySelectorAll('article, .video-item, .video-card, [class*="video"]'));
+          wrappers.forEach((wrapper) => {
+            if (!wrapper.querySelector('video')) return;
+            wrapper.querySelectorAll('h1, h2, h3, h4, h5, p, span, label, small, div').forEach((node) => {
+              if (!node.querySelector('video') &&
+                  !node.classList.contains('video-loading-overlay') &&
+                  !node.closest('.video-loading-overlay')) {
+                node.style.display = 'none';
+              }
+            });
+          });
+        }
+
+        const observer = new MutationObserver(function () {
+          observer.disconnect();
+          applyVideoTweaks();
+          observer.observe(document.body, { childList: true, subtree: true });
+        });
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', function () {
+            applyVideoTweaks();
+            setTimeout(applyVideoTweaks, 800);
+            setInterval(applyVideoTweaks, 500);
+            observer.observe(document.body, { childList: true, subtree: true });
+          });
+        } else {
+          applyVideoTweaks();
+          setTimeout(applyVideoTweaks, 800);
+          setInterval(applyVideoTweaks, 500);
+          observer.observe(document.body, { childList: true, subtree: true });
+        }
+      })();
+    </script>
   </body>
 </html>
