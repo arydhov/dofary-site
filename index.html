@@ -11,10 +11,10 @@
   <body>
     <div id="root"></div>
     <style>
-      video ~ * {
+      video ~ *:not(.video-download-control) {
         display: none !important;
       }
-      video + * {
+      video + *:not(.video-download-control) {
         display: none !important;
       }
       .video-media-container ~ * {
@@ -26,6 +26,36 @@
       [class*="video"]:has(video) > :not(video) {
         display: none !important;
       }
+      .video-download-control {
+        align-items: center;
+        background: rgba(0, 0, 0, 0.78);
+        bottom: 12px;
+        color: white;
+        display: flex !important;
+        gap: 10px;
+        left: 12px;
+        padding: 9px 12px;
+        position: absolute;
+        z-index: 3;
+      }
+      .video-download-control button {
+        background: #818cf8;
+        border: 0;
+        border-radius: 4px;
+        color: white;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 8px 12px;
+      }
+      .video-download-control button:disabled {
+        cursor: wait;
+        opacity: 0.65;
+      }
+      .video-download-status {
+        font-size: 11px;
+        white-space: nowrap;
+      }
     </style>
     <script>
       (function () {
@@ -36,28 +66,70 @@
             if (video.parentElement) {
               video.parentElement.classList.add('video-media-container');
             }
-            video.setAttribute('autoplay', 'true');
+            video.removeAttribute('autoplay');
             video.setAttribute('muted', 'true');
             video.setAttribute('playsinline', 'true');
             video.setAttribute('loop', 'true');
-            video.setAttribute('preload', 'auto');
-            video.autoplay = true;
+            video.setAttribute('preload', 'none');
+            video.autoplay = false;
             video.muted = true;
             video.playsInline = true;
             video.loop = true;
             video.controls = false;
 
-            const playPromise = video.play && video.play();
-            if (playPromise && typeof playPromise.catch === 'function') {
-              playPromise.catch(function () {});
-            }
+            const parent = video.parentElement;
+            if (!parent || parent.querySelector('.video-download-control')) return;
+
+            const control = document.createElement('div');
+            control.className = 'video-download-control';
+            control.innerHTML = '<button type="button">Download & Play</button>' +
+              '<span class="video-download-status">Download video to play smoothly</span>';
+            parent.appendChild(control);
+
+            const button = control.querySelector('button');
+            const status = control.querySelector('.video-download-status');
+            button.addEventListener('click', async function () {
+              button.disabled = true;
+              status.textContent = 'Downloading... 0%';
+              try {
+                const response = await fetch(video.currentSrc || video.src, { mode: 'cors' });
+                if (!response.ok || !response.body) {
+                  throw new Error('Download request failed');
+                }
+
+                const total = Number(response.headers.get('content-length')) || 0;
+                const reader = response.body.getReader();
+                const chunks = [];
+                let received = 0;
+                while (true) {
+                  const result = await reader.read();
+                  if (result.done) break;
+                  chunks.push(result.value);
+                  received += result.value.length;
+                  status.textContent = total
+                    ? 'Downloading... ' + Math.round((received / total) * 100) + '%'
+                    : 'Downloading...';
+                }
+
+                const blob = new Blob(chunks, { type: response.headers.get('content-type') || 'video/mp4' });
+                const localUrl = URL.createObjectURL(blob);
+                video.src = localUrl;
+                video.load();
+                await video.play();
+                status.textContent = 'Playing downloaded video';
+                button.textContent = 'Downloaded';
+              } catch (error) {
+                status.textContent = 'Download blocked: enable CDN CORS';
+                button.disabled = false;
+              }
+            });
           });
 
           const wrappers = Array.from(document.querySelectorAll('article, .video-item, .video-card, [class*="video"]'));
           wrappers.forEach((wrapper) => {
             if (!wrapper.querySelector('video')) return;
             wrapper.querySelectorAll('h1, h2, h3, h4, h5, p, span, label, small, div').forEach((node) => {
-              if (!node.querySelector('video')) {
+              if (!node.querySelector('video') && !node.classList.contains('video-download-control')) {
                 node.style.display = 'none';
               }
             });
