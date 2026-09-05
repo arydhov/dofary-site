@@ -1,87 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Muhammad Arif Aridho — motion graphics and digital media portfolio." />
     <title>Dofary Site</title>
-    <script type="module" crossorigin src="/assets/index-CMdo7lYr.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index--U8AAURP.css">
   </head>
   <body>
     <div id="root"></div>
-    <style>
-      video ~ * {
-        display: none !important;
-      }
-      video + * {
-        display: none !important;
-      }
-      .video-media-container ~ * {
-        display: none !important;
-      }
-      article:has(video) > :not(video),
-      .video-item:has(video) > :not(video),
-      .video-card:has(video) > :not(video),
-      [class*="video"]:has(video) > :not(video) {
-        display: none !important;
-      }
-    </style>
-    <script>
-      (function () {
-        function applyVideoTweaks() {
-          const videos = Array.from(document.querySelectorAll('video'));
-
-          videos.forEach((video) => {
-            if (video.parentElement) {
-              video.parentElement.classList.add('video-media-container');
-            }
-            video.setAttribute('autoplay', 'true');
-            video.setAttribute('muted', 'true');
-            video.setAttribute('playsinline', 'true');
-            video.setAttribute('loop', 'true');
-            video.setAttribute('preload', 'auto');
-            video.autoplay = true;
-            video.muted = true;
-            video.playsInline = true;
-            video.loop = true;
-            video.controls = false;
-
-            const playPromise = video.play && video.play();
-            if (playPromise && typeof playPromise.catch === 'function') {
-              playPromise.catch(function () {});
-            }
-          });
-
-          const wrappers = Array.from(document.querySelectorAll('article, .video-item, .video-card, [class*="video"]'));
-          wrappers.forEach((wrapper) => {
-            if (!wrapper.querySelector('video')) return;
-            wrapper.querySelectorAll('h1, h2, h3, h4, h5, p, span, label, small, div').forEach((node) => {
-              if (!node.querySelector('video')) {
-                node.style.display = 'none';
-              }
-            });
-          });
-        }
-
-        const observer = new MutationObserver(function () {
-          observer.disconnect();
-          applyVideoTweaks();
-          observer.observe(document.body, { childList: true, subtree: true });
-        });
-
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', function () {
-            applyVideoTweaks();
-            setTimeout(applyVideoTweaks, 800);
-            observer.observe(document.body, { childList: true, subtree: true });
-          });
-        } else {
-          applyVideoTweaks();
-          setTimeout(applyVideoTweaks, 800);
-          observer.observe(document.body, { childList: true, subtree: true });
-        }
-      })();
-    </script>
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
