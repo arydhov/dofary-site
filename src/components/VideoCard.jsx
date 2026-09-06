@@ -24,11 +24,11 @@ export default function VideoCard({ video }) {
         <iframe
           src={getYouTubeEmbedUrl(video.src)}
           title={video.title || 'Portfolio video'}
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          loading="lazy"
+          className="absolute inset-0 w-full h-full"
+          loading="eager"
           allow="autoplay; encrypted-media; picture-in-picture"
-          allowFullScreen={false}
-          tabIndex={-1}
+          allowFullScreen
+          tabIndex={0}
         />
       </div>
     );
